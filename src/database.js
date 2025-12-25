@@ -1,0 +1,213 @@
+/**
+ * Database Connection Module
+ * Handles secure connection to MySQL database with connection pooling
+ */
+
+const mysql = require('mysql2/promise');
+require('dotenv').config();
+
+class Database {
+    constructor() {
+        // Create connection pool for better performance and connection management
+        this.pool = mysql.createPool({
+            host: process.env.DB_HOST || 'localhost',
+            user: process.env.DB_USER || 'root',
+            password: process.env.DB_PASSWORD || 'Minhasenha.18',
+            database: process.env.DB_NAME || 'ca2_database',
+            waitForConnections: true,
+            connectionLimit: 10, // Maximum number of connections in pool
+            queueLimit: 0,
+            enableKeepAlive: true,
+            keepAliveInitialDelay: 0
+        });
+
+        this.initializeDatabase();
+    }
+
+    /**
+     * Initialize database and create table if it doesn't exist
+     */
+    async initializeDatabase() {
+        try {
+            const connection = await this.pool.getConnection();
+            
+            // Create table
+            const createTableSQL = `
+                CREATE TABLE IF NOT EXISTS mysql_table (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    first_name VARCHAR(50) NOT NULL,
+                    last_name VARCHAR(50) NOT NULL,
+                    email VARCHAR(100) UNIQUE NOT NULL,
+                    phone_number VARCHAR(15),
+                    eircode VARCHAR(10),
+                    age INT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_email (email),
+                    INDEX idx_created_at (created_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            `;
+
+            await connection.execute(createTableSQL);
+            console.log('Database table verified/created successfully');
+            
+            connection.release();
+        } catch (error) {
+            console.error('Database initialization failed:', error.message);
+            
+            // Provide more helpful error messages
+            if (error.code === 'ER_ACCESS_DENIED_ERROR') {
+                console.error('   Password might be incorrect. Check your .env file');
+                console.error('   Current password setting:', process.env.DB_PASSWORD || 'Minhasenha.18 (default)');
+            } else if (error.code === 'ER_BAD_DB_ERROR') {
+                console.error('   Database might not exist. Run sql/schema.sql first');
+            }
+            
+            throw error;
+        }
+    }
+
+    /**
+     * Get a connection from the pool
+     * @returns {Promise} Database connection
+     */
+    async getConnection() {
+        return await this.pool.getConnection();
+    }
+
+    /**
+     * Execute a query with parameters
+     * @param {string} sql - SQL query
+     * @param {Array} params - Query parameters
+     * @returns {Promise} Query result
+     */
+    async execute(sql, params = []) {
+        try {
+            const [results] = await this.pool.execute(sql, params);
+            return results;
+        } catch (error) {
+            console.error('Database query error:', error.message);
+            
+            // Log SQL for debugging in development mode
+            if (process.env.NODE_ENV === 'development') {
+                console.error('   SQL:', sql);
+                console.error('   Params:', params);
+            }
+            
+            throw error;
+        }
+    }
+
+    /**
+     * Insert a record into mysql_table
+     * @param {Object} data - Record data
+     * @returns {Promise} Insert result
+     */
+    async insertRecord(data) {
+        const sql = `
+            INSERT INTO mysql_table 
+            (first_name, last_name, email, phone_number, eircode, age) 
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE 
+            first_name = VALUES(first_name),
+            last_name = VALUES(last_name),
+            phone_number = VALUES(phone_number),
+            eircode = VALUES(eircode),
+            age = VALUES(age)
+        `;
+        
+        const params = [
+            data.first_name,
+            data.last_name,
+            data.email,
+            data.phone_number || null,
+            data.eircode || null,
+            data.age || null
+        ];
+
+        return await this.execute(sql, params);
+    }
+
+    /**
+     * Insert multiple records in a transaction
+     * @param {Array} records - Array of record objects
+     * @returns {Promise} Bulk insert result
+     */
+    async insertBulkRecords(records) {
+        const connection = await this.getConnection();
+        
+        try {
+            await connection.beginTransaction();
+            
+            for (const record of records) {
+                await this.insertRecord(record);
+            }
+            
+            await connection.commit();
+            return { success: true, count: records.length };
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
+    }
+
+    /**
+     * Test database connection
+     * @returns {Promise} Connection test result
+     */
+    async testConnection() {
+        try {
+            const connection = await this.getConnection();
+            const [result] = await connection.execute('SELECT 1 + 1 AS test');
+            connection.release();
+            
+            return {
+                success: true,
+                message: 'Database connection successful',
+                testResult: result[0].test
+            };
+        } catch (error) {
+            return {
+                success: false,
+                message: 'Database connection failed: ' + error.message,
+                error: error
+            };
+        }
+    }
+
+    /**
+     * Get database statistics
+     * @returns {Promise} Database stats
+     */
+    async getStats() {
+        try {
+            const [rowCount] = await this.execute('SELECT COUNT(*) as count FROM mysql_table');
+            const [latestRecords] = await this.execute('SELECT * FROM mysql_table ORDER BY created_at DESC LIMIT 5');
+            
+            return {
+                totalRecords: rowCount[0].count,
+                latestRecords: latestRecords,
+                timestamp: new Date().toISOString()
+            };
+        } catch (error) {
+            console.error('Error getting database stats:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Close database connections
+     */
+    async close() {
+        try {
+            await this.pool.end();
+            console.log('Database connections closed');
+        } catch (error) {
+            console.error('Error closing database connections:', error);
+        }
+    }
+}
+
+// Export singleton instance
+module.exports = new Database();
