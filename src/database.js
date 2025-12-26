@@ -25,33 +25,35 @@ class Database {
     }
 
     /**
-     * Initialize database and create table if it doesn't exist
+     * Initialize database and verify table exists
      */
     async initializeDatabase() {
         try {
             const connection = await this.pool.getConnection();
             
-            // Create table
-            const createTableSQL = `
-                CREATE TABLE IF NOT EXISTS mysql_table (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    first_name VARCHAR(50) NOT NULL,
-                    last_name VARCHAR(50) NOT NULL,
-                    email VARCHAR(100) UNIQUE NOT NULL,
-                    phone_number VARCHAR(15),
-                    eircode VARCHAR(10),
-                    age INT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    INDEX idx_email (email),
-                    INDEX idx_created_at (created_at)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-            `;
-
-            await connection.execute(createTableSQL);
-            console.log('Database table verified/created successfully');
+            // Just verify the table exists instead of trying to create it
+            // The table should be created by running schema.sql with root user
+            const [tables] = await connection.execute(
+                "SHOW TABLES LIKE 'mysql_table'"
+            );
+            
+            if (tables.length === 0) {
+                console.error('Table mysql_table does not exist!');
+                console.error('   Please run: mysql -u root -p < sql/schema.sql');
+                throw new Error('Database table not found. Run schema.sql first.');
+            }
+            
+            console.log('Database table verified successfully');
             
             connection.release();
         } catch (error) {
+            // Check if it's a permission error (which is expected)
+            if (error.code === 'ER_TABLEACCESS_DENIED_ERROR') {
+                console.log('Database connection established');
+                console.log('  (Table creation skipped - requires admin privileges)');
+                return;
+            }
+            
             console.error('Database initialization failed:', error.message);
             
             // Provide more helpful error messages
@@ -60,7 +62,8 @@ class Database {
                 console.error('   Current user:', process.env.DB_USER || 'ca2_app_user (default)');
                 console.error('   Current password:', process.env.DB_PASSWORD ? '******' : 'Pass1234! (default)');
             } else if (error.code === 'ER_BAD_DB_ERROR') {
-                console.error('   Database might not exist. Run sql/schema.sql first');
+                console.error('   Database might not exist. Run schema.sql first');
+                console.error('   Command: mysql -u root -p < sql/schema.sql');
             }
             
             throw error;
@@ -139,8 +142,23 @@ class Database {
         try {
             await connection.beginTransaction();
             
+            const sql = `
+                INSERT INTO mysql_table 
+                (first_name, last_name, email, age) 
+                VALUES (?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE 
+                first_name = VALUES(first_name),
+                last_name = VALUES(last_name),
+                age = VALUES(age)
+            `;
+            
             for (const record of records) {
-                await this.insertRecord(record);
+                await connection.execute(sql, [
+                    record.first_name,
+                    record.last_name,
+                    record.email,
+                    record.age || null
+                ]);
             }
             
             await connection.commit();
