@@ -1,0 +1,25 @@
+# Environment variables (PASSWORDS!)
+.env
+
+# Dependencies (15,000+ files!)
+node_modules/
+
+# Uploads directory
+uploads/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE files
+.vscode/
+.idea/
+
+# Database files
+*.sql
+*.bak
+*.db
