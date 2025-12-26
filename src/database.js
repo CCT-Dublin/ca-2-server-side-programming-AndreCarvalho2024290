@@ -11,8 +11,8 @@ class Database {
         // Create connection pool for better performance and connection management
         this.pool = mysql.createPool({
             host: process.env.DB_HOST || 'localhost',
-            user: process.env.DB_USER || 'root',
-            password: process.env.DB_PASSWORD || 'Minhasenha.18',
+            user: process.env.DB_USER || 'ca2_app_user',          // Application user
+            password: process.env.DB_PASSWORD || 'Pass1234!',     // Application password
             database: process.env.DB_NAME || 'ca2_database',
             waitForConnections: true,
             connectionLimit: 10, // Maximum number of connections in pool
@@ -56,8 +56,9 @@ class Database {
             
             // Provide more helpful error messages
             if (error.code === 'ER_ACCESS_DENIED_ERROR') {
-                console.error('   Password might be incorrect. Check your .env file');
-                console.error('   Current password setting:', process.env.DB_PASSWORD || 'Minhasenha.18 (default)');
+                console.error('   Username/Password might be incorrect. Check your .env file');
+                console.error('   Current user:', process.env.DB_USER || 'ca2_app_user (default)');
+                console.error('   Current password:', process.env.DB_PASSWORD ? '******' : 'Pass1234! (default)');
             } else if (error.code === 'ER_BAD_DB_ERROR') {
                 console.error('   Database might not exist. Run sql/schema.sql first');
             }
