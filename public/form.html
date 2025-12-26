@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Registration Form</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .error {
+            color: red;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h2>User Registration Form</h2>
+    
+    <form id="userForm">
+        <!-- First Name Field -->
+        <div class="form-group">
+            <label for="firstName">First Name:</label>
+            <input type="text" id="firstName" name="firstName" required>
+            <div class="error" id="firstNameError"></div>
+        </div>
+
+        <!-- Last Name Field -->
+        <div class="form-group">
+            <label for="lastName">Last Name:</label>
+            <input type="text" id="lastName" name="lastName" required>
+            <div class="error" id="lastNameError"></div>
+        </div>
+
+        <!-- Email Field -->
+        <div class="form-group">
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required>
+            <div class="error" id="emailError"></div>
+        </div>
+
+        <!-- Phone Number Field -->
+        <div class="form-group">
+            <label for="phoneNumber">Phone Number:</label>
+            <input type="tel" id="phoneNumber" name="phoneNumber" required>
+            <div class="error" id="phoneNumberError"></div>
+        </div>
+
+        <!-- Eircode Field -->
+        <div class="form-group">
+            <label for="eircode">Eircode:</label>
+            <input type="text" id="eircode" name="eircode" required>
+            <div class="error" id="eircodeError"></div>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" id="submitBtn">Submit</button>
+    </form>    
+    
+    <script>
+        // Form submission event listener
+        document.getElementById('userForm').addEventListener('submit', function(e) {
+            e.preventDefault(); // Prevent page reload
+            
+            // Only submit if validation passes
+            if (validateForm()) {
+                submitForm();
+            }
+        });
+
+        // Validation function
+        function validateForm() {
+            let isValid = true;
+            
+            // Get and trim form values
+            const firstName = document.getElementById('firstName').value.trim();
+            const lastName = document.getElementById('lastName').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const phoneNumber = document.getElementById('phoneNumber').value.trim();
+            const eircode = document.getElementById('eircode').value.trim();
+
+            // Reset all error messages
+            document.querySelectorAll('.error').forEach(error => error.textContent = '');
+
+            // First Name Validation: alphanumeric, max 20 characters
+            if (!/^[a-zA-Z0-9]{1,20}$/.test(firstName)) {
+                document.getElementById('firstNameError').textContent = 
+                    'First Name must be alphanumeric and max 20 characters';
+                isValid = false;
+            }
+
+            // Last Name Validation: alphanumeric, max 20 characters
+            if (!/^[a-zA-Z0-9]{1,20}$/.test(lastName)) {
+                document.getElementById('lastNameError').textContent = 
+                    'Last Name must be alphanumeric and max 20 characters';
+                isValid = false;
+            }
+
+            // Email Validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                document.getElementById('emailError').textContent = 
+                    'Please enter a valid email address';
+                isValid = false;
+            }
+
+            // Phone Validation: exactly 10 digits
+            if (!/^\d{10}$/.test(phoneNumber)) {
+                document.getElementById('phoneNumberError').textContent = 
+                    'Phone Number must be exactly 10 digits';
+                isValid = false;
+            }
+
+            // Eircode Validation: starts with number, 6 alphanumeric characters
+            if (!/^[0-9][a-zA-Z0-9]{5}$/.test(eircode)) {
+                document.getElementById('eircodeError').textContent = 
+                    'Eircode must start with a number and be exactly 6 alphanumeric characters';
+                isValid = false;
+            }
+
+            return isValid;
+        }
+
+        // Form submission function
+        function submitForm() {
+            const submitBtn = document.getElementById('submitBtn');
+            
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting...';
+
+            // Prepare data for submission
+            const formData = {
+                firstName: document.getElementById('firstName').value.trim(),
+                lastName: document.getElementById('lastName').value.trim(),
+                email: document.getElementById('email').value.trim(),
+                phoneNumber: document.getElementById('phoneNumber').value.trim(),
+                eircode: document.getElementById('eircode').value.trim()
+            };
+
+            // Send data to server
+            fetch('/api/submit-form', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Handle server response
+                if (data.success) {
+                    alert('Form submitted successfully!');
+                    document.getElementById('userForm').reset(); // Clear form
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('Error submitting form: ' + error.message);
+            })
+            .finally(() => {
+                // Reset button state
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit';
+            });
+        }
+    </script>
+</body>
+</html>
