@@ -18,7 +18,7 @@ class SecurityMiddleware {
                 directives: {
                     defaultSrc: ["'self'"],
                     styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for form
-                    scriptSrc: ["'self'"], // Only allow scripts from same origin
+                    scriptSrc: ["'self'", "'unsafe-inline'"], // Allow inline scripts for form
                     imgSrc: ["'self'", "data:", "https:"],
                     connectSrc: ["'self'"],
                     fontSrc: ["'self'"],
