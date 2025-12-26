@@ -172,6 +172,9 @@
                 eircode: document.getElementById('eircode').value.trim()
             };
 
+            // Console log for debugging
+            console.log('Sending data to server:', formData);
+
             // Send data to server
             fetch('/api/submit-form', {
                 method: 'POST',
@@ -180,7 +183,15 @@
                 },
                 body: JSON.stringify(formData)
             })
-            .then(response => response.json())
+            .then(response => {
+                // Check if response is ok before parsing JSON
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.message || 'Server error');
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 // Handle server response
                 if (data.success) {
@@ -191,6 +202,7 @@
                 }
             })
             .catch(error => {
+                console.error('Submission error:', error);
                 alert('Error submitting form: ' + error.message);
             })
             .finally(() => {
