@@ -154,50 +154,6 @@ class Database {
     }
 
     /**
-     * Test database connection
-     * @returns {Promise} Connection test result
-     */
-    async testConnection() {
-        try {
-            const connection = await this.getConnection();
-            const [result] = await connection.execute('SELECT 1 + 1 AS test');
-            connection.release();
-            
-            return {
-                success: true,
-                message: 'Database connection successful',
-                testResult: result[0].test
-            };
-        } catch (error) {
-            return {
-                success: false,
-                message: 'Database connection failed: ' + error.message,
-                error: error
-            };
-        }
-    }
-
-    /**
-     * Get database statistics
-     * @returns {Promise} Database stats
-     */
-    async getStats() {
-        try {
-            const [rowCount] = await this.execute('SELECT COUNT(*) as count FROM mysql_table');
-            const [latestRecords] = await this.execute('SELECT * FROM mysql_table ORDER BY created_at DESC LIMIT 5');
-            
-            return {
-                totalRecords: rowCount[0].count,
-                latestRecords: latestRecords,
-                timestamp: new Date().toISOString()
-            };
-        } catch (error) {
-            console.error('Error getting database stats:', error);
-            throw error;
-        }
-    }
-
-    /**
      * Close database connections
      */
     async close() {
